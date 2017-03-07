@@ -5,17 +5,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import csv
-#MAIN_FOLDER = "sample_images"
-MAIN_FOLDER = "stage1/stage1"
+import math
+MAIN_FOLDER = "sample_images"
+#MAIN_FOLDER = "stage1/stage1"
 SCALE_CONST = 16
+hyper_param = 0.001
 patient_id_list = [name for name in os.listdir(MAIN_FOLDER)]
 
 def compute_score(labels,pred):
-	error_count = 0
-	for tup in zip(pred,labels):
-		if tup[0]!=tup[1]:
-			error_count+=1
-	return float(labels.shape[0]-error_count)/float(labels.shape[0])
+    error_count = 0
+    for tup in zip(pred,labels):
+        if tup[0]!=tup[1]:
+            error_count+=1
+    return float(labels.shape[0]-error_count)/float(labels.shape[0])
 
 def LDA_predict(cov,x_list,pi_list,mean_list):
     inv_cov = np.linalg.pinv(cov+hyper_param*np.identity(cov.shape[0]))
@@ -51,8 +53,7 @@ with open("stage1_labels.csv") as csvfile:
     reader = csv.reader(csvfile, delimiter=',')
     for row in reader:
         if row[1]=='0' or row[1]=='1':
-            label_list[row[0]]=row[1]
-            
+            label_list[row[0]]=int(row[1])
 test_set = []
 with open("stage1_sample_submission.csv") as csvfile:
     reader = csv.reader(csvfile,delimiter=',')
@@ -60,9 +61,27 @@ with open("stage1_sample_submission.csv") as csvfile:
         if row[0]!='id':
             test_set.append(row[0])
 
+mid_images = []
+for patient_id in patient_id_list:
+    if patient_id not in test_set:
+        files = [f for f in os.listdir(MAIN_FOLDER+"/"+patient_id) if os.path.isfile(os.path.join(MAIN_FOLDER+"/"+patient_id, f))]
+        num_files = len(files)
+        image = dicom.read_file(MAIN_FOLDER+"/"+patient_id+"/"+files[num_files//2])
+        image_features = [np.mean([image.pixel_array[SCALE_CONST*i+i2][SCALE_CONST*j+j2] for j2 in range(SCALE_CONST) for i2 in range(SCALE_CONST)]) for j in range(image.Columns/SCALE_CONST) for i in range(image.Rows/SCALE_CONST)]
+        #mid_images[patient_id] = image_features
+        image_features.append(label_list[patient_id]) #last column is of labels
+        mid_images.append(image_features)
+
 validation_set = np.array(mid_images[:len(mid_images)//5])
 training_set = np.array(mid_images[len(mid_images)//5:])
 nums_samples = [len(mid_images)]
+LDA_errors = []
+QDA_errors = []
+classes = []
+for label in training_set[:,training_set.shape[1]-1]:
+    if label not in classes:
+        classes.append(label)
+num_classes = len(classes)
 #nums_samples = [100,200,500,1000,len(mid_images)]
 for num_samples in nums_samples:
     v_set = validation_set[:,:validation_set.shape[1]-1]
