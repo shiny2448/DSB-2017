@@ -1,19 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-Spyder Editor
+Created on Wed Mar  8 18:01:41 2017
 
-This is a temporary script file.
+@author: bennettng
 """
 
 import numpy as np
+import pandas as pd
 import dicom
 import os
 
+from scipy import ndimage
 import imutil
 import segmentation
-
-# constants 
-INPUT_FOLDER = '../data/sample_images/'
 
 # load slices from a given path
 def load_scan(path):
@@ -29,20 +28,17 @@ def load_scan(path):
         
     return slices
 
-def processPatient(name):
-    print('processing patient: ', name)
-    slices = load_scan(INPUT_FOLDER + name)
-    pixels = imutil.get_pixels_hu(slices)
-    px_resamp, spacing = imutil.resample(pixels, slices, [1,1,1])
-    segmented_lungs_filled = segmentation.segment_lung_mask(px_resamp, True)
-    return segmented_lungs_filled
-    print('done')
 
-def main():    
-    patients = os.listdir(INPUT_FOLDER)
-    patients.sort()
-    for pt in patients:
-        processPatient(pt)
+INPUT_FOLDER = '../data/sample_images/'
+patients = os.listdir(INPUT_FOLDER)
+patients.sort()
+pt = patients[1]
+print('processing patient: ', pt)
+slices = load_scan(INPUT_FOLDER + pt)
+img = imutil.get_pixels_hu(slices)
+img_resamp, spacing = imutil.resample(img, slices, [1,1,1])
+mask_lungs = segmentation.segment_lung_mask(img_resamp, True)
+mask_lungs = ndimage.binary_dilation(mask_lungs) # dilate mask   
+img_lungs = img_resamp * mask_lungs
 
-if __name__ == '__main__':
-    main()
+imutil.plot_collage(mask_lungs)
