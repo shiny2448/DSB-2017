@@ -1,5 +1,7 @@
 # data archives
 *.7z
+*.hdf5
+*.npy
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
