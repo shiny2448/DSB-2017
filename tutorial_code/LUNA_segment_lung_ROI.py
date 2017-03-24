@@ -4,7 +4,6 @@ from skimage import measure
 from sklearn.cluster import KMeans
 from skimage.transform import resize
 from glob import glob
-from tqdm import tqdm
 
 working_path = "../output/"
 file_list=glob(working_path+"images_*.npy")
@@ -18,7 +17,7 @@ def get_lung_mask(img):
     # Find the average pixel value near the lungs
     # to renormalize washed out images      
     middle = img[100:400,100:400] 
-    mean = np.mean(middle)  
+    mean = np.mean(middle)
     max = np.max(img)
     min = np.min(img)
     # To improve threshold finding, I'm moving the 
@@ -91,6 +90,11 @@ def apply_mask_normalize(img, mask):
     #make image bounding box  (min row, min col, max row, max col)
     labels = measure.label(mask)
     regions = measure.regionprops(labels)
+    
+    # skip slices with no lung regions
+    if len(regions) is 0:
+        return -1
+    
     #
     # Finding the global min and max row over all regions
     #
@@ -114,6 +118,7 @@ def apply_mask_normalize(img, mask):
         max_row=min_row+width
     else:
         max_col = min_col+height
+    
     # 
     # cropping the image down to the bounding box for all regions
     # (there's probably an skimage command that can do this in one line)
@@ -121,8 +126,7 @@ def apply_mask_normalize(img, mask):
     img = img[min_row:max_row,min_col:max_col]
     mask =  mask[min_row:max_row,min_col:max_col]
     if max_row-min_row <5 or max_col-min_col<5:  # skipping all images with no god regions
-        new_img = None
-        new_mask = None
+        new_img = -1
     else:
         # moving range to -1 to 1 to accomodate the resize function
         mean = np.mean(img)
@@ -131,57 +135,4 @@ def apply_mask_normalize(img, mask):
         max = np.max(img)
         img = img/(max-min)
         new_img = resize(img,[512,512])
-        new_mask = resize(node_mask[min_row:max_row,min_col:max_col],[512,512])
-    return new_img, new_mask
-
-if __name__ == '__main__':
-    print('creating lung ROI masks (phase 1 of 2)')
-    for fcount, img_file in enumerate(tqdm(file_list)):
-        # I ran into an error when using Kmean on np.float16, so I'm using np.float64 here
-        imgs_to_process = np.load(img_file).astype(np.float64)
-        for i in range(len(imgs_to_process)):
-            mask = get_lung_mask(imgs_to_process[i])
-            imgs_to_process[i] = mask
-        np.save(img_file.replace("images","lungmask"),imgs_to_process)    
-    
-    #
-    #    Here we're applying the masks and cropping and resizing the image
-    #
-    print('applying lung ROI masks (phase 2 of 2)')
-    file_list=glob(working_path+"lungmask_*.npy")
-    out_images = []      #final set of images
-    out_nodemasks = []   #final set of nodemasks
-    for fcount, fname in enumerate(tqdm(file_list)):
-        # print("working on file ", fname)
-        imgs_to_process = np.load(fname.replace("lungmask","images"))
-        masks = np.load(fname)
-        node_masks = np.load(fname.replace("lungmask","masks"))
-        for i in range(len(imgs_to_process)):
-            mask = masks[i]
-            node_mask = node_masks[i]
-            img = imgs_to_process[i]
-            new_size = [512,512]   # we're scaling back up to the original size of the image
-            new_img, new_node_mask = apply_mask_normalize(img, mask)
-            if new_img != None and new_node_mask != None:
-                out_images.append(new_img)
-                out_nodemasks.append(new_node_mask)
-    
-    num_images = len(out_images)
-    #
-    #  Writing out images and masks as 1 channel arrays for input into network
-    #
-    final_images = np.ndarray([num_images,1,512,512],dtype=np.float32)
-    final_masks = np.ndarray([num_images,1,512,512],dtype=np.float32)
-    for i in range(num_images):
-        final_images[i,0] = out_images[i]
-        final_masks[i,0] = out_nodemasks[i]
-    
-    # reserve 20% as test data
-    rand_i = np.random.choice(range(num_images),size=num_images,replace=False)
-    test_i = int(0.2*num_images)
-    np.save(working_path+"trainImages.npy",final_images[rand_i[test_i:]])
-    np.save(working_path+"trainMasks.npy",final_masks[rand_i[test_i:]])
-    np.save(working_path+"testImages.npy",final_images[rand_i[:test_i]])
-    np.save(working_path+"testMasks.npy",final_masks[rand_i[:test_i]])
-
-
+    return new_img

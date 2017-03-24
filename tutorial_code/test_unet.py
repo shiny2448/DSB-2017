@@ -1,9 +1,15 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 import LUNA_train_unet
 working_path = "../../DSB3Tutorial/output/"
+
+def plot_image_and_mask(image, mask):
+    plt.imshow(image)
+    plt.imshow(mask)
+    plt.imshow(image*mask)
 
 def test_model(model, name, imgs, true_masks):
     print('-'*40)
@@ -27,9 +33,9 @@ imgs_test = np.load(working_path+"testImages.npy").astype(np.float32)
 masks_test_true = np.load(working_path+"testMasks.npy").astype(np.float32)
 
 # use tutorial weights
-model.load_weights('./unet_bah.hdf5')
+model.load_weights('./unet_original.hdf5')
 test_model(model, 'tutorial', imgs_test, masks_test_true)
 
 # use trained weights
-model.load_weights('./unet.hdf5')
+model.load_weights('./unet_trained.hdf5')
 test_model(model, 'trained', imgs_test, masks_test_true)
