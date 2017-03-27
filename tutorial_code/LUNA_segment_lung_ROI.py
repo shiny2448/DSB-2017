@@ -90,11 +90,6 @@ def apply_mask_normalize(img, mask):
     #make image bounding box  (min row, min col, max row, max col)
     labels = measure.label(mask)
     regions = measure.regionprops(labels)
-    
-    # skip slices with no lung regions
-    if len(regions) is 0:
-        return -1
-    
     #
     # Finding the global min and max row over all regions
     #
@@ -118,7 +113,6 @@ def apply_mask_normalize(img, mask):
         max_row=min_row+width
     else:
         max_col = min_col+height
-    
     # 
     # cropping the image down to the bounding box for all regions
     # (there's probably an skimage command that can do this in one line)

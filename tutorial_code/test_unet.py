@@ -37,5 +37,5 @@ model.load_weights('./unet_original.hdf5')
 test_model(model, 'tutorial', imgs_test, masks_test_true)
 
 # use trained weights
-model.load_weights('./unet_trained.hdf5')
+model.load_weights('./unet_double_trained.hdf5')
 test_model(model, 'trained', imgs_test, masks_test_true)
