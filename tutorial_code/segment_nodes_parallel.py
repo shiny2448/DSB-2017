@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 import numpy as np # linear algebra
 import dicom
 import os
@@ -56,8 +55,9 @@ if __name__ == "__main__":
     unet = LUNA_train_unet.get_unet()
     unet.load_weights('./unet_preserve_range_double_trained_170331.hdf5')
     
-    # segment
-    for i in range(60, len(patients)):
+    inputs = range(len(patients))
+    
+    def processInput(i):
         print('Processing patient', str(i+1), 'of', str(len(patients)))
         patient = patients[i]
         stack = get_dicom_stack(INPUT_FOLDER + patient)
@@ -105,4 +105,7 @@ if __name__ == "__main__":
         np.save(OUTPUT_FOLDER + patient + '_nodule_masks.npy', final_nodule_masks)
         np.save(OUTPUT_FOLDER + patient + '_lung_imgs.npy', final_lung_imgs)
         np.save(OUTPUT_FOLDER + patient + '_lung_masks.npy', final_lung_masks)
+        
+    num_cores = multiprocessing.cpu_count()-2
+    results = Parallel(n_jobs=num_cores)(delayed(processInput)(i) for i in inputs)        
         

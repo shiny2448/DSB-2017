@@ -1,9 +1,11 @@
 # usage: python classify_nodes.py nodes.npy 
 
 import numpy as np
+import pandas as pd
 import scipy as sp
-import pickle
 import glob
+import pickle
+from tqdm import tqdm
 
 from sklearn.cross_validation import StratifiedKFold as KFold
 from sklearn.metrics import classification_report
@@ -19,7 +21,7 @@ def logloss(act, pred):
     return ll
 
 def getRegionFromMap(slice_npy):
-    thr = np.where(slice_npy > np.mean(slice_npy),0.,1.0)
+    thr = np.where(slice_npy > np.mean(slice_npy),1.0,0.0)
     label_image = label(thr)
     labels = label_image.astype(int)
     regions = regionprops(labels)
@@ -73,28 +75,44 @@ def getRegionMetricRow(fname = "nodules.npy"):
     return np.array([nslices,avgArea,maxArea,avgEcc,avgEquivlentDiameter,\
                      stdEquivlentDiameter, weightedX, weightedY, numNodes, numNodesperSlice])
 
-def createFeatureDataset(nodfiles=None):
+def createTrainingDataset(nodfiles=None):
     if nodfiles == None:
         # directory of numpy arrays containing masks for nodules
         # found via unet segmentation
-        noddir = "../data/segmented_nodules/" 
-        nodfiles = glob(noddir +"*npy")
+        noddir = "../data/segmented_nodules/stage1/" 
+        nodfiles = glob.glob(noddir +"*_nodule_masks.npy")
     # dict with mapping between training examples and true labels
     # the training set is the output masks from the unet segmentation
-    truthdata = pickle.load(open("truthdict.pkl",'r'))
-    numfeatures = 9
+    truthdata = pd.read_csv("../data/stage1/stage1_labels_all.csv")
+    numfeatures = 10
     feature_array = np.zeros((len(nodfiles),numfeatures))
     truth_metric = np.zeros((len(nodfiles)))
     
-    for i,nodfile in enumerate(nodfiles):
-        patID = nodfile.split("_")[2]
-        truth_metric[i] = truthdata[int(patID)]
+    for i, nodfile in enumerate(tqdm(nodfiles)):
+        patID = nodfile.split("\\")[1].split('_')[0]        
+        truth_metric[i] = truthdata[truthdata['id']==patID]['cancer'].values[0]
         feature_array[i] = getRegionMetricRow(nodfile)
     
     np.save("dataY.npy", truth_metric)
     np.save("dataX.npy", feature_array)
+    
+def createTestDataset():
+    noddir = "../data/segmented_nodules/test/" 
+    nodfiles = glob.glob(noddir +"*_nodule_masks.npy")
+    
+    numfeatures = 10
+    feature_array = np.zeros((len(nodfiles),numfeatures))
+    patID_list = []
+    
+    for i, nodfile in enumerate(tqdm(nodfiles)):
+        patID = nodfile.split("\\")[1].split('_')[0]
+        feature_array[i] = getRegionMetricRow(nodfile)
+        patID_list.append(patID)
 
-def classifyData():
+    np.save("testX.npy", feature_array)
+    pickle.dump( patID_list, open( "testIDs.p", "wb" ) )
+
+def trainClassifier():
     X = np.load("dataX.npy")
     Y = np.load("dataY.npy")
 
@@ -107,9 +125,29 @@ def classifyData():
         y_pred[test] = clf.predict(X_test)
     print(classification_report(Y, y_pred, target_names=["No Cancer", "Cancer"]))
     print("logloss",logloss(Y, y_pred))
+    
+    return clf
+
+def evaluateTestData(classifier):
+    # load test data
+    X = np.load("testX.npy")
+    patID_list = pickle.load( open( "testIDs.p", "rb" ) )
+    
+    # classify
+    Y = clf.predict(X)
+    
+    # write
+    d = {'id' : pd.Series(patID_list),
+         'cancer' : pd.Series(Y)}
+    df = pd.DataFrame(d)
+    df = df[['id', 'cancer']]
+    df.to_csv('submission.csv', index=False)
 
 if __name__ == "__main__":
     from sys import argv  
     
-    createFeatureDataset()
-    classifyData()
+#    createTrainingDataset()
+    clf = trainClassifier()
+    
+    createTestDataset()
+    evaluateTestData(clf)
