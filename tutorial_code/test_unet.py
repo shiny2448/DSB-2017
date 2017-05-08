@@ -4,14 +4,14 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 import LUNA_train_unet
-working_path = "../../DSB3Tutorial/output/"
+working_path = "../../DSB3Tutorial/output_with_orig_img/"
 
 def plot_image_and_mask(image, mask):
     plt.imshow(image)
     plt.imshow(mask)
     plt.imshow(image*mask)
 
-def test_model(model, name, imgs, true_masks, save_masks=False):
+def test_model(model, name, imgs, true_masks, save_masks=True):
     print('-'*40)
     print('Predicting masks using', name, 'model...')
     print('-'*40)
@@ -27,8 +27,8 @@ def test_model(model, name, imgs, true_masks, save_masks=False):
     mean/=num_test
     print("Mean Dice Coeff : ",mean)
     if save_masks:
-        np.save('pred_masks.npy', pred_masks)
-        np.save('true_masks.npy', true_masks)
+        np.save(working_path+'pred_masks.npy', pred_masks)
+#        np.save('true_masks.npy', true_masks)
 
 # load model and test data
 model = LUNA_train_unet.get_unet()

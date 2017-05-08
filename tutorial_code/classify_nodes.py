@@ -97,7 +97,7 @@ def createTrainingDataset(nodfiles=None):
     np.save("dataX.npy", feature_array)
     
 def createTestDataset():
-    noddir = "../data/segmented_nodules/test/" 
+    noddir = "../data/segmented_nodules/stage2/" 
     nodfiles = glob.glob(noddir +"*_nodule_masks.npy")
     
     numfeatures = 10
@@ -142,12 +142,19 @@ def evaluateTestData(classifier):
     df = pd.DataFrame(d)
     df = df[['id', 'cancer']]
     df.to_csv('submission.csv', index=False)
-
-if __name__ == "__main__":
-    from sys import argv  
     
+def saveClassifier(classifier):
+    with open('classifier.pkl', 'wb') as f:
+        pickle.dump(classifier, f)
+        
+def loadClassifier():
+    with open('classifier.pkl', 'rb') as f:
+        return clf.load(f)
+
+if __name__ == "__main__":    
 #    createTrainingDataset()
     clf = trainClassifier()
+    saveClassifier(clf)
     
     createTestDataset()
     evaluateTestData(clf)

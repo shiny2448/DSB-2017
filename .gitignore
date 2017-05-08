@@ -1,3 +1,5 @@
+*.png
+
 # data archives
 *.7z
 *.hdf5

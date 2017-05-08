@@ -9,11 +9,8 @@ import warnings
 import LUNA_segment_lung_ROI
 import LUNA_train_unet
 
-from joblib import Parallel, delayed
-import multiprocessing
-
-INPUT_FOLDER = '../data/stage2/'
-OUTPUT_FOLDER = '../data/segmented_nodules/stage2/'
+INPUT_FOLDER = '../data/sample_images/'
+OUTPUT_FOLDER = '../data/segmented_nodules/sample_images/'
 MIN_TOT_LUNG_AREA = 400
 MIN_TOT_NODULE_AREA = 135   # pixels, represents bottom 4% of LUNA16 nodules
 
@@ -57,7 +54,7 @@ if __name__ == "__main__":
     unet.load_weights('./unet_preserve_range_double_trained_170331.hdf5')
     
     # segment
-    for i in range(60, len(patients)):
+    for i in range(len(patients)):
         print('Processing patient', str(i+1), 'of', str(len(patients)))
         patient = patients[i]
         stack = get_dicom_stack(INPUT_FOLDER + patient)
